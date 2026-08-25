@@ -678,13 +678,13 @@ with fila2[1]:
 
 with fila2[2]:
     tarjeta_resultado(
-        "ε/D",
+        "Rugosidad relativa ε/D",
         f"{eps_rel:.5e}"
     )
 
 with fila2[3]:
     tarjeta_resultado(
-        "V²/(2g)",
+        "Carga de velocidad V²/(2g)",
         f"{hv:.6f} m"
     )
 

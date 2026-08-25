@@ -609,69 +609,102 @@ hf = (
 # -----------------------------
 st.header("2. Resultados")
 
-r1, r2, r3, r4 = st.columns(4)
+
+def tarjeta_resultado(titulo, valor):
+    st.markdown(
+        f"""
+        <div style="
+            background: rgba(255,255,255,0.82);
+            border: 1px solid #ead8ea;
+            border-radius: 16px;
+            padding: 16px 18px;
+            min-height: 105px;
+            box-shadow: 0 6px 18px rgba(112,78,126,0.08);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        ">
+            <div style="
+                font-size: 0.85rem;
+                color: #735570;
+                margin-bottom: 7px;
+                font-weight: 500;
+            ">
+                {titulo}
+            </div>
+
+            <div style="
+                font-size: 1.65rem;
+                color: #5c436e;
+                font-weight: 700;
+                line-height: 1.15;
+                word-break: normal;
+                overflow-wrap: normal;
+                white-space: nowrap;
+            ">
+                {valor}
+            </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
 
 
-r1.metric(
-    "Diámetro D",
-    formato_resultado(
-        D,
-        "m",
-    ),
-)
+fila1 = st.columns(4)
 
-r2.metric(
-    "Área A",
-    formato_resultado(
-        A,
-        "m²",
-    ),
-)
+with fila1[0]:
+    tarjeta_resultado(
+        "Diámetro D",
+        f"{D:.5g} m"
+    )
 
-r3.metric(
-    "Velocidad V",
-    formato_resultado(
-        v,
-        "m/s",
-    ),
-)
+with fila1[1]:
+    tarjeta_resultado(
+        "Área A",
+        f"{A:.5e} m²"
+    )
 
-r4.metric(
-    "Caudal Q",
-    formato_resultado(
-        Q,
-        "m³/s",
-    ),
-)
+with fila1[2]:
+    tarjeta_resultado(
+        "Velocidad V",
+        f"{v:.5g} m/s"
+    )
+
+with fila1[3]:
+    tarjeta_resultado(
+        "Caudal Q",
+        f"{Q:.5e} m³/s"
+    )
 
 
-r5, r6, r7, r8 = st.columns(4)
+st.write("")
 
 
-r5.metric(
-    "Reynolds Re",
-    f"{Re:,.0f}",
-)
+fila2 = st.columns(4)
 
-r6.metric(
-    "Tipo de flujo",
-    regimen,
-)
+with fila2[0]:
+    tarjeta_resultado(
+        "Reynolds Re",
+        f"{Re:,.0f}"
+    )
 
-r7.metric(
-    "ε/D",
-    formato_resultado(
-        eps_rel,
-    ),
-)
+with fila2[1]:
+    tarjeta_resultado(
+        "Tipo de flujo",
+        regimen
+    )
 
-r8.metric(
-    "V²/(2g)",
-    formato_resultado(
-        hv,
-        "m",
-    ),
-)
+with fila2[2]:
+    tarjeta_resultado(
+        "ε/D",
+        f"{eps_rel:.5e}"
+    )
+
+with fila2[3]:
+    tarjeta_resultado(
+        "V²/(2g)",
+        f"{hv:.6f} m"
+    )
 
 
 # -----------------------------

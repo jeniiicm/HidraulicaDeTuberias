@@ -611,43 +611,25 @@ st.header("2. Resultados")
 
 
 def tarjeta_resultado(titulo, valor):
-    st.markdown(
-        f"""
-        <div style="
-            background: rgba(255,255,255,0.82);
-            border: 1px solid #ead8ea;
-            border-radius: 16px;
-            padding: 16px 18px;
-            min-height: 105px;
-            box-shadow: 0 6px 18px rgba(112,78,126,0.08);
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-        ">
-            <div style="
-                font-size: 0.85rem;
-                color: #735570;
-                margin-bottom: 7px;
-                font-weight: 500;
-            ">
-                {titulo}
-            </div>
-
-            <div style="
-                font-size: 1.65rem;
-                color: #5c436e;
-                font-weight: 700;
-                line-height: 1.15;
-                word-break: normal;
-                overflow-wrap: normal;
-                white-space: nowrap;
-            ">
-                {valor}
-            </div>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
+    html = f"""
+<div style="background:rgba(255,255,255,0.82);
+border:1px solid #ead8ea;
+border-radius:16px;
+padding:16px 18px;
+min-height:105px;
+box-shadow:0 6px 18px rgba(112,78,126,0.08);">
+<div style="font-size:0.85rem;
+color:#735570;
+margin-bottom:7px;
+font-weight:500;">{titulo}</div>
+<div style="font-size:1.45rem;
+color:#5c436e;
+font-weight:700;
+line-height:1.2;
+white-space:nowrap;">{valor}</div>
+</div>
+"""
+    st.markdown(html, unsafe_allow_html=True)
 
 
 fila1 = st.columns(4)

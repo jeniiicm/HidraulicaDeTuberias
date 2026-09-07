@@ -329,7 +329,7 @@ def entrada_hidraulica(prefix, D, default="Caudal Q"):
 # ============================================================
 # ENCABEZADO Y CONFIGURACIÓN GLOBAL
 # ============================================================
-st.title("💧 Hidráulica en tuberías")
+st.title("💧 Hidráulica en tuberías 💧")
 st.caption(
     "Programa interactivo para Reynolds, Darcy–Weisbach, Hazen–Williams, "
     "Chézy–Manning, Colebrook, pérdidas localizadas, Moody y diseño de diámetro."

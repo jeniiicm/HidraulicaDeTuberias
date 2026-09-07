@@ -1,3 +1,4 @@
+
 import math
 import numpy as np
 import matplotlib.pyplot as plt
@@ -192,7 +193,10 @@ def hf_manning(L, Q, D, n):
 def hf_local(K, V):
     return K * (V**2 / (2 * G))
 
-def fmt(x, unidad="", sig=6):
+def fmt(x, unidad="", dec=3):
+    """Muestra resultados con máximo 3 decimales.
+    Para valores muy pequeños usa notación científica con 3 decimales.
+    """
     if x is None:
         return "—"
     try:
@@ -200,12 +204,15 @@ def fmt(x, unidad="", sig=6):
             return "—"
     except Exception:
         return str(x)
+
     if x == 0:
         txt = "0"
-    elif abs(x) < 0.001 or abs(x) >= 100000:
-        txt = f"{x:.{sig}e}"
+    elif abs(x) < 0.001:
+        txt = f"{x:.3e}"
+    elif abs(x) >= 100000:
+        txt = f"{x:,.0f}"
     else:
-        txt = f"{x:.{sig}g}"
+        txt = f"{x:.{dec}f}".rstrip("0").rstrip(".")
     return f"{txt} {unidad}".strip()
 
 def tarjeta(titulo, valor):
@@ -454,16 +461,16 @@ with tabs[1]:
     with c[2]:
         tarjeta("Rugosidad relativa ε/D", fmt(eps_rel))
     with c[3]:
-        tarjeta("Factor recomendado f", f"{f_usado:.6f}" if f_usado is not None else "—")
+        tarjeta("Factor recomendado f", fmt(f_usado))
 
     st.subheader("Comparación de factores de fricción")
     st.table(
         {
             "Método": ["Poiseuille", "Blasius", "Colebrook"],
             "f": [
-                f"{fp:.6f}" if fp is not None else "—",
-                f"{fb:.6f}" if fb is not None else "—",
-                f"{fc:.6f}" if fc is not None else "—",
+                fmt(fp),
+                fmt(fb),
+                fmt(fc),
             ],
             "Aplicación": [
                 "Flujo laminar",
@@ -596,9 +603,9 @@ with tabs[4]:
 
     c = st.columns(3)
     with c[0]:
-        tarjeta("Colebrook f", f"{fc:.6f}" if fc is not None else "—")
+        tarjeta("Colebrook f", fmt(fc))
     with c[1]:
-        tarjeta("Guerrero f", f"{fg:.6f}" if fg is not None else "Fuera de rango")
+        tarjeta("Guerrero f", fmt(fg) if fg is not None else "Fuera de rango")
     with c[2]:
         tarjeta("Parámetros Guerrero", f"G={GG}, T={T}" if GG is not None else "—")
 
@@ -620,95 +627,215 @@ with tabs[4]:
 # ============================================================
 with tabs[5]:
     st.header("Pérdidas localizadas")
-    st.latex(r"h_L=K\frac{V^2}{2g}")
+    st.caption("Cálculo por longitudes equivalentes y métodos específicos para reducciones, ampliaciones y rejillas.")
 
-    subtabs = st.tabs(["Accesorios K", "Reducción", "Ampliación", "Rejilla / filtro"])
+    subtabs = st.tabs(["Longitudes equivalentes", "Reducción", "Ampliación", "Rejilla / filtro"])
 
     with subtabs[0]:
-        st.subheader("Accesorios, entradas, salidas, cambios de dirección y válvulas")
+        st.subheader("Pérdidas por accesorios mediante longitud equivalente")
+        st.latex(r"L_T=L+\sum L_e")
+        st.latex(r"h_f=f\frac{L_T}{D}\frac{V^2}{2g}")
 
-        D = a_metros(
-            st.number_input(
-                "Diámetro",
-                min_value=0.000001,
-                value=1.0,
-                format="%.6f",
-                key="loc_Dv",
-            ),
-            st.selectbox("Unidad D", ["in", "mm", "cm", "m"], key="loc_Du"),
-        )
-        A = area_circular(D)
+        # Tabla de longitudes equivalentes (m de tubería rectilínea)
+        accesorios_le = [
+            "Codo 90° radio largo",
+            "Codo 90° radio medio",
+            "Codo 90° radio corto",
+            "Codo 45°",
+            "Curva 90° R/D = 1 1/2",
+            "Curva 90° R/D = 1",
+            "Curva 45°",
+            "Entrada normal",
+            "Entrada de Borda",
+            "Válvula de compuerta abierta",
+            "Válvula tipo globo abierta",
+            "Válvula de ángulo abierta",
+            "Té paso directo",
+            "Té salida lateral",
+            "Té salida bilateral",
+            "Válvula de pie",
+            "Salida de tubería",
+            "Válvula de retención tipo liviano",
+            "Válvula de retención tipo pesado",
+        ]
 
-        qv = st.number_input("Caudal", min_value=0.0, value=2.0, format="%.6f", key="loc_Qv")
-        qu = st.selectbox(
-            "Unidad Q",
-            ["L/s", "L/min", "m³/s", "m³/min", "m³/h"],
-            key="loc_Qu",
-        )
-        Q = caudal_a_m3s(qv, qu)
-        V = Q / A if A > 0 else 0.0
-
-        K_tabla = {
-            "Ampliación gradual": 0.30,
-            "Boquilla gradual": 2.75,
-            "Compuerta abierta": 1.00,
-            "Controlador de caudal": 2.50,
-            "Codo de 90°": 0.90,
-            "Codo de 45°": 0.40,
-            "Rejilla": 0.75,
-            "Curva de 90°": 0.40,
-            "Curva de 45°": 0.20,
-            "Curva de 22°30′": 0.10,
-            "Entrada redondeada (r = D/2)": 0.23,
-            "Entrada normal en tubo": 0.50,
-            "Entrada de Borda": 1.00,
-            "Entrada abocinada (tabla)": 0.04,
-            "Embocadura de arista viva": 0.50,
-            "Embocadura tipo entrante": 1.00,
-            "Embocadura abocinada": 0.05,
-            "Existencia de pequeña derivación": 0.03,
-            "Confluencia": 0.40,
-            "Medidor Venturi": 2.50,
-            "Reducción gradual": 0.15,
-            "Válvula de compuerta abierta": 0.20,
-            "Válvula de ángulo abierta": 5.00,
-            "Válvula tipo globo abierta": 10.00,
-            "Salida de tubo": 1.00,
-            "T, pasaje directo": 0.60,
-            "T, salida de lado": 1.30,
-            "T, salida bilateral": 1.80,
-            "Válvula de pie": 1.75,
-            "Válvula de retención": 2.50,
-            "Boquilla": 0.03,
-            "Personalizado": None,
+        diametros_tabla = {
+            "13 mm — 1/2 in": (13, [0.3,0.4,0.5,0.2,0.2,0.3,0.2,0.2,0.4,0.1,4.9,2.6,0.3,1.0,1.0,3.6,0.4,1.1,1.6]),
+            "19 mm — 3/4 in": (19, [0.4,0.6,0.7,0.3,0.3,0.4,0.2,0.2,0.5,0.1,6.7,3.6,0.4,1.4,1.4,5.6,0.5,1.6,2.4]),
+            "25 mm — 1 in": (25, [0.5,0.7,0.8,0.4,0.3,0.5,0.2,0.3,0.7,0.2,8.2,4.6,0.5,1.7,1.7,7.3,0.7,2.1,3.2]),
+            "32 mm — 1 1/4 in": (32, [0.7,0.9,1.1,0.5,0.4,0.6,0.3,0.4,0.9,0.2,11.3,5.6,0.7,2.3,2.3,10.0,0.9,2.7,4.0]),
+            "38 mm — 1 1/2 in": (38, [0.9,1.1,1.3,0.6,0.5,0.7,0.3,0.5,1.0,0.3,13.4,6.7,0.9,2.8,2.8,11.6,1.0,3.2,4.8]),
+            "50 mm — 2 in": (50, [1.1,1.4,1.7,0.8,0.6,0.9,0.4,0.7,1.5,0.4,17.4,8.5,1.1,3.5,3.5,14.0,1.5,4.2,6.4]),
+            "63 mm — 2 1/2 in": (63, [1.3,1.7,2.0,0.9,0.8,1.0,0.5,0.9,1.9,0.4,21.0,10.0,1.3,4.3,4.3,17.0,1.9,5.2,8.1]),
+            "75 mm — 3 in": (75, [1.6,2.1,2.5,1.2,1.0,1.3,0.6,1.1,2.2,0.5,28.0,13.0,1.6,5.2,5.2,20.0,2.2,6.3,9.7]),
+            "100 mm — 4 in": (100, [2.1,2.8,3.4,1.5,1.3,1.6,0.7,1.6,3.2,0.7,34.0,17.0,2.1,6.7,6.7,23.0,3.2,6.4,12.9]),
+            "125 mm — 5 in": (125, [2.7,3.7,4.2,1.9,1.6,2.1,0.9,2.0,4.0,0.9,43.0,21.0,2.7,8.4,8.4,30.0,4.0,10.4,16.1]),
+            "150 mm — 6 in": (150, [3.4,4.3,4.9,2.3,1.9,2.5,1.1,2.5,5.0,1.1,51.0,26.0,3.4,10.0,10.0,39.0,5.0,12.5,19.3]),
+            "200 mm — 8 in": (200, [4.3,5.5,6.4,3.0,2.4,3.3,1.5,3.5,6.0,1.4,67.0,34.0,4.3,13.0,13.0,52.0,6.0,16.0,25.0]),
+            "250 mm — 10 in": (250, [5.5,6.7,7.9,3.8,3.0,4.1,1.8,4.5,7.5,1.7,85.0,43.0,5.5,16.0,16.0,65.0,7.5,20.0,32.0]),
+            "300 mm — 12 in": (300, [6.1,7.9,9.5,4.6,3.6,4.8,2.2,5.5,9.0,2.1,102.0,51.0,6.1,19.0,19.0,78.0,9.0,24.0,38.0]),
+            "350 mm — 14 in": (350, [7.3,9.5,10.5,5.3,4.4,5.4,2.5,6.2,11.0,2.4,120.0,60.0,7.3,22.0,22.0,90.0,11.0,28.0,45.0]),
         }
 
-        acc = st.selectbox("Accesorio / causa", list(K_tabla.keys()), key="loc_acc")
-        if K_tabla[acc] is None:
-            K = st.number_input("K", min_value=0.0, value=1.0, format="%.5f", key="loc_K")
-        else:
-            K = K_tabla[acc]
+        diametro_nominal = st.selectbox(
+            "Diámetro nominal de la tabla",
+            list(diametros_tabla.keys()),
+            index=2,
+            key="le_diametro",
+        )
+        D_mm, le_fila = diametros_tabla[diametro_nominal]
+        D = D_mm / 1000.0
+        A = area_circular(D)
 
-        cantidad = st.number_input(
-            "Cantidad de accesorios iguales",
-            min_value=1,
-            value=1,
-            step=1,
-            key="loc_cant",
+        c1, c2 = st.columns(2)
+        with c1:
+            L_real = st.number_input(
+                "Longitud real de tubería L [m]",
+                min_value=0.0,
+                value=50.0,
+                format="%.3f",
+                key="le_L",
+            )
+        with c2:
+            qv = st.number_input(
+                "Caudal",
+                min_value=0.0,
+                value=2.0,
+                format="%.3f",
+                key="le_Q",
+            )
+            qu = st.selectbox(
+                "Unidad de Q",
+                ["L/s", "L/min", "m³/s", "m³/min", "m³/h"],
+                key="le_Qu",
+            )
+
+        Q = caudal_a_m3s(qv, qu)
+        V = Q / A if A > 0 else 0.0
+        Re = reynolds(V, D, nu_global)
+        reg = clasificar_flujo(Re, criterio)
+
+        seleccionados = st.multiselect(
+            "Selecciona todos los accesorios del sistema",
+            accesorios_le,
+            default=[],
+            key="le_accesorios",
         )
 
-        h_unit = hf_local(K, V)
-        h_total = cantidad * h_unit
+        detalles = []
+        Le_total = 0.0
+        for acc in seleccionados:
+            idx = accesorios_le.index(acc)
+            Le_unit = le_fila[idx]
+            cantidad = st.number_input(
+                f"Cantidad — {acc}",
+                min_value=1,
+                value=1,
+                step=1,
+                key=f"le_cant_{idx}",
+            )
+            subtotal = Le_unit * cantidad
+            Le_total += subtotal
+            detalles.append({
+                "Accesorio": acc,
+                "Lₑ unitario [m]": round(Le_unit, 3),
+                "Cantidad": cantidad,
+                "Lₑ subtotal [m]": round(subtotal, 3),
+            })
+
+        if detalles:
+            st.dataframe(detalles, use_container_width=True, hide_index=True)
+        else:
+            st.info("Selecciona uno o varios accesorios para sumar sus longitudes equivalentes.")
+
+        L_total = L_real + Le_total
+
+        st.subheader("Factor de fricción")
+        metodo_f = st.selectbox(
+            "Método para obtener f",
+            ["Automático", "Colebrook", "Blasius", "Introducir f manual"],
+            key="le_metodo_f",
+        )
+
+        eps_mm_tab = {
+            "PVC / plástico / vidrio": 0.0015,
+            "Cobre": 0.0015,
+            "Galvanizado": 0.015,
+            "Personalizada": None,
+        }
+
+        if metodo_f in ["Automático", "Colebrook"]:
+            mat = st.selectbox(
+                "Material / rugosidad",
+                list(eps_mm_tab.keys()),
+                key="le_mat",
+            )
+            if eps_mm_tab[mat] is None:
+                eps_mm = st.number_input(
+                    "ε [mm]",
+                    min_value=0.0,
+                    value=0.015,
+                    format="%.4f",
+                    key="le_eps",
+                )
+            else:
+                eps_mm = eps_mm_tab[mat]
+            eps_rel = (eps_mm / 1000.0) / D
+
+        if metodo_f == "Introducir f manual":
+            f_usado = st.number_input(
+                "Factor de fricción f",
+                min_value=0.000001,
+                value=0.025,
+                format="%.4f",
+                key="le_fmanual",
+            )
+            metodo_nombre = "Manual"
+        elif metodo_f == "Blasius":
+            f_usado = f_blasius(Re)
+            metodo_nombre = "Blasius"
+        elif metodo_f == "Colebrook":
+            f_usado = f_colebrook(Re, eps_rel)
+            metodo_nombre = "Colebrook"
+        else:
+            if reg == "Laminar":
+                f_usado = f_poiseuille(Re)
+                metodo_nombre = "Poiseuille"
+            else:
+                f_usado = f_colebrook(Re, eps_rel)
+                metodo_nombre = "Colebrook"
+
+        hf_total = hf_darcy(f_usado, L_total, D, V) if f_usado is not None else None
 
         c = st.columns(4)
         with c[0]:
-            tarjeta("K", fmt(K))
+            tarjeta("Σ Lₑ accesorios", fmt(Le_total, "m"))
         with c[1]:
-            tarjeta("Velocidad V", fmt(V, "m/s"))
+            tarjeta("Longitud total L_T", fmt(L_total, "m"))
         with c[2]:
-            tarjeta("h_L por accesorio", fmt(h_unit, "m"))
+            tarjeta("Factor f", fmt(f_usado))
         with c[3]:
-            tarjeta("h_L total", fmt(h_total, "m"))
+            tarjeta("Pérdida total h_f", fmt(hf_total, "m.c.a."))
+
+        c = st.columns(3)
+        with c[0]:
+            tarjeta("Velocidad V", fmt(V, "m/s"))
+        with c[1]:
+            tarjeta("Reynolds Re", f"{Re:,.0f}")
+        with c[2]:
+            tarjeta("Método de f", metodo_nombre)
+
+        with st.expander("Desarrollo del cálculo"):
+            st.latex(r"L_T=L+\sum L_e")
+            st.write(
+                f"L_T = {fmt(L_real, 'm')} + {fmt(Le_total, 'm')} = {fmt(L_total, 'm')}"
+            )
+            st.latex(r"h_f=f\frac{L_T}{D}\frac{V^2}{2g}")
+            if hf_total is not None:
+                st.write(
+                    f"h_f = {fmt(f_usado)} × ({fmt(L_total, 'm')} / {fmt(D, 'm')}) "
+                    f"× ({fmt(V, 'm/s')}² / (2×9.81)) = {fmt(hf_total, 'm.c.a.')}"
+                )
 
     with subtabs[1]:
         st.subheader("Reducción")
@@ -891,7 +1018,7 @@ with tabs[6]:
     st.pyplot(fig)
     plt.close(fig)
 
-    tarjeta("Factor f en tu punto", f"{fm:.6f}")
+    tarjeta("Factor f en tu punto", fmt(fm))
 
 # ============================================================
 # DISEÑO DE DIÁMETRO

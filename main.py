@@ -360,13 +360,13 @@ else:
 tabs = st.tabs(
     [
         "🏠 Inicio",
-        "📘 Darcy",
-        "🌊 Hazen–Williams",
-        "📗 Chézy–Manning",
-        "🧮 Colebrook",
-        "🧩 Pérdidas locales",
-        "📈 Moody",
-        "📐 Diseño de diámetro",
+        "Darcy",
+        "Hazen–Williams",
+        "Chézy–Manning",
+        "Colebrook",
+        "Pérdidas locales",
+        "Moody",
+        "Diseño de diámetro",
     ]
 )
 

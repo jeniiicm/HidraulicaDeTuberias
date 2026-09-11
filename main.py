@@ -1,6 +1,6 @@
-
 import math
 import numpy as np
+import pandas as pd
 import matplotlib.pyplot as plt
 import streamlit as st
 
@@ -329,7 +329,7 @@ def entrada_hidraulica(prefix, D, default="Caudal Q"):
 # ============================================================
 # ENCABEZADO Y CONFIGURACIÓN GLOBAL
 # ============================================================
-st.title("💧 Hidráulica en tuberías 💧")
+st.title("💧 Hidráulica en tuberías")
 st.caption(
     "Programa interactivo para Reynolds, Darcy–Weisbach, Hazen–Williams, "
     "Chézy–Manning, Colebrook, pérdidas localizadas, Moody y diseño de diámetro."
@@ -360,13 +360,14 @@ else:
 tabs = st.tabs(
     [
         "🏠 Inicio",
-        "Darcy",
-        "Hazen–Williams",
-        "Chézy–Manning",
-        "Colebrook",
-        "Pérdidas locales",
-        "Moody",
-        "Diseño de diámetro",
+        "📘 Darcy",
+        "🌊 Hazen–Williams",
+        "📗 Chézy–Manning",
+        "🧮 Colebrook",
+        "🧩 Pérdidas locales",
+        "📈 Moody",
+        "📐 Diseño de diámetro",
+        "🧭 Diseño por tramos",
     ]
 )
 
@@ -1108,6 +1109,218 @@ with tabs[7]:
 
         Vreq = Qd / area_circular(Dreq)
         tarjeta("Velocidad con ese diámetro", fmt(Vreq, "m/s"))
+
+
+# ============================================================
+# DISEÑO HIDRÁULICO POR TRAMOS
+# ============================================================
+with tabs[8]:
+    st.header("Diseño hidráulico por tramos")
+    st.caption(
+        "Calcula caudales por tramo, diámetro preliminar, tres diámetros nominales "
+        "alternativos y pérdidas de carga por tramo."
+    )
+
+    diametros_nominales = [0.5, 0.75, 1.0, 1.25, 1.5, 2.0, 2.5, 3.0, 4.0]
+    etiqueta_d = {
+        0.5: '1/2"', 0.75: '3/4"', 1.0: '1"', 1.25: '1 1/4"',
+        1.5: '1 1/2"', 2.0: '2"', 2.5: '2 1/2"', 3.0: '3"', 4.0: '4"'
+    }
+
+    # Longitudes equivalentes de la tabla de clase, en metros de tubería recta
+    le_table = {
+        0.5:  {"Codo 90° radio corto":0.5,"Codo 45°":0.2,"Válvula de pie":3.6,"Salida de tubería":0.4},
+        0.75: {"Codo 90° radio corto":0.7,"Codo 45°":0.3,"Válvula de pie":5.6,"Salida de tubería":0.5},
+        1.0:  {"Codo 90° radio corto":0.8,"Codo 45°":0.4,"Válvula de pie":7.3,"Salida de tubería":0.7},
+        1.25: {"Codo 90° radio corto":1.1,"Codo 45°":0.5,"Válvula de pie":10.0,"Salida de tubería":0.9},
+        1.5:  {"Codo 90° radio corto":1.3,"Codo 45°":0.6,"Válvula de pie":11.6,"Salida de tubería":1.0},
+        2.0:  {"Codo 90° radio corto":1.7,"Codo 45°":0.8,"Válvula de pie":14.0,"Salida de tubería":1.5},
+        2.5:  {"Codo 90° radio corto":2.0,"Codo 45°":0.9,"Válvula de pie":17.0,"Salida de tubería":1.9},
+        3.0:  {"Codo 90° radio corto":2.5,"Codo 45°":1.2,"Válvula de pie":20.0,"Salida de tubería":2.2},
+        4.0:  {"Codo 90° radio corto":3.4,"Codo 45°":1.5,"Válvula de pie":23.0,"Salida de tubería":3.2},
+    }
+
+    # Para accesorios no incluidos arriba se podrá usar Le manual.
+    st.subheader("1. Definir la red")
+
+    modo = st.radio(
+        "Modo",
+        ["Plantilla de ramificación", "Tramos manuales"],
+        horizontal=True,
+        key="tr_modo"
+    )
+
+    if modo == "Plantilla de ramificación":
+        st.markdown("**Línea principal con una derivación y dos salidas posteriores**")
+
+        c1, c2, c3, c4 = st.columns(4)
+        with c1:
+            L12 = st.number_input("L 1–2 [m]", min_value=0.0, value=30.0, key="tr_L12")
+        with c2:
+            L2A = st.number_input("L 2–A vertical [m]", min_value=0.0, value=18.0, key="tr_L2A")
+        with c3:
+            L23 = st.number_input("L 2–3 [m]", min_value=0.0, value=20.0, key="tr_L23")
+        with c4:
+            L34 = st.number_input("L 3–4 [m]", min_value=0.0, value=0.0, key="tr_L34")
+
+        c1, c2, c3 = st.columns(3)
+        with c1:
+            QA = st.number_input("Salida A [L/s]", min_value=0.0, value=3.0, key="tr_QA")
+        with c2:
+            Q3 = st.number_input("Salida punto 3 [L/s]", min_value=0.0, value=1.5, key="tr_Q3")
+        with c3:
+            Q4 = st.number_input("Salida final [L/s]", min_value=0.0, value=2.0, key="tr_Q4")
+
+        tramos = [
+            {"Tramo":"1–2", "L":L12, "Q":QA+Q3+Q4},
+            {"Tramo":"2–A", "L":L2A, "Q":QA},
+            {"Tramo":"2–3", "L":L23, "Q":Q3+Q4},
+            {"Tramo":"3–4", "L":L34, "Q":Q4},
+        ]
+    else:
+        n = int(st.number_input("Número de tramos", min_value=1, max_value=10, value=3, step=1, key="tr_n"))
+        tramos = []
+        for i in range(n):
+            c1, c2, c3 = st.columns(3)
+            with c1:
+                nombre = st.text_input("Tramo", value=f"{i+1}–{i+2}", key=f"tr_nom_{i}")
+            with c2:
+                L = st.number_input("Longitud [m]", min_value=0.0, value=10.0, key=f"tr_L_{i}")
+            with c3:
+                Q = st.number_input("Caudal en el tramo [L/s]", min_value=0.0, value=1.0, key=f"tr_Q_{i}")
+            tramos.append({"Tramo":nombre, "L":L, "Q":Q})
+
+    st.dataframe(pd.DataFrame(tramos), use_container_width=True, hide_index=True)
+
+    st.subheader("2. Diámetro preliminar y tres alternativas")
+    st.latex(r"D_{pre}[in]\approx\sqrt{Q[L/s]}")
+
+    candidatos = {}
+    tabla_d = []
+
+    for i, t in enumerate(tramos):
+        Dpre = math.sqrt(t["Q"]) if t["Q"] > 0 else 0.5
+        idx = min(range(len(diametros_nominales)),
+                  key=lambda j: abs(diametros_nominales[j] - Dpre))
+
+        elegido = st.selectbox(
+            f"Diámetro seleccionado para tramo {t['Tramo']}",
+            diametros_nominales,
+            index=idx,
+            format_func=lambda x: f"{etiqueta_d[x]}  ({x:.2f} in)",
+            key=f"tr_Dsel_{i}"
+        )
+
+        idx2 = diametros_nominales.index(elegido)
+        d1 = diametros_nominales[max(0, idx2-1)]
+        d2 = elegido
+        d3 = diametros_nominales[min(len(diametros_nominales)-1, idx2+1)]
+        candidatos[i] = [d1,d2,d3]
+
+        tabla_d.append({
+            "Tramo":t["Tramo"],
+            "Q [L/s]":round(t["Q"],3),
+            "Dpre=√Q [in]":round(Dpre,3),
+            "D1 menor":etiqueta_d[d1],
+            "D2 seleccionado":etiqueta_d[d2],
+            "D3 mayor":etiqueta_d[d3],
+        })
+
+    st.dataframe(pd.DataFrame(tabla_d), use_container_width=True, hide_index=True)
+
+    st.subheader("3. Material y accesorios por tramo")
+
+    mat = st.selectbox(
+        "Material",
+        ["PVC / plástico / vidrio","Cobre","Galvanizado","Personalizada"],
+        key="tr_mat"
+    )
+    eps_base = {
+        "PVC / plástico / vidrio":0.0015,
+        "Cobre":0.0015,
+        "Galvanizado":0.015,
+        "Personalizada":None
+    }[mat]
+    if eps_base is None:
+        eps_base = st.number_input("ε [mm]", min_value=0.0, value=0.015, format="%.4f", key="tr_eps")
+
+    accesorios_base = ["Codo 90° radio corto","Codo 45°","Válvula de pie","Salida de tubería"]
+    accesorios_tramo = {}
+    extra_Le_tramo = {}
+
+    for i,t in enumerate(tramos):
+        with st.expander(f"Accesorios del tramo {t['Tramo']}"):
+            selec = st.multiselect(
+                "Selecciona accesorios",
+                accesorios_base,
+                key=f"tr_acc_{i}"
+            )
+            cantidades = {}
+            for acc in selec:
+                cantidades[acc] = st.number_input(
+                    f"Cantidad — {acc}",
+                    min_value=1, value=1, step=1,
+                    key=f"tr_accn_{i}_{accesorios_base.index(acc)}"
+                )
+            accesorios_tramo[i] = cantidades
+            extra_Le_tramo[i] = st.number_input(
+                "Longitud equivalente adicional manual [m]",
+                min_value=0.0, value=0.0, key=f"tr_Leextra_{i}"
+            )
+
+    st.subheader("4. Resultados por tramo y por diámetro")
+
+    filas = []
+    for i,t in enumerate(tramos):
+        Qm3s = t["Q"]/1000.0
+        for nombre_alt,Din in zip(["D1 menor","D2 seleccionado","D3 mayor"], candidatos[i]):
+            Dm = Din*0.0254
+            A = area_circular(Dm)
+            V = Qm3s/A if A>0 else 0.0
+            Re = reynolds(V,Dm,nu_global)
+            reg = clasificar_flujo(Re,criterio)
+            eps_rel = (eps_base/1000.0)/Dm
+
+            if reg == "Laminar":
+                f = f_poiseuille(Re)
+                metodo = "Poiseuille"
+            else:
+                f = f_colebrook(Re,eps_rel)
+                metodo = "Colebrook"
+
+            Le = extra_Le_tramo[i]
+            for acc,cant in accesorios_tramo[i].items():
+                Le += le_table[Din][acc]*cant
+
+            LT = t["L"] + Le
+            hf = hf_darcy(f,LT,Dm,V) if f is not None else None
+
+            filas.append({
+                "Tramo":t["Tramo"],
+                "Alternativa":nombre_alt,
+                "D":etiqueta_d[Din],
+                "Q [L/s]":round(t["Q"],3),
+                "V [m/s]":round(V,3),
+                "Re":round(Re),
+                "f":round(f,3) if f is not None else None,
+                "L [m]":round(t["L"],3),
+                "ΣLe [m]":round(Le,3),
+                "LT [m]":round(LT,3),
+                "hf [m.c.a.]":round(hf,3) if hf is not None else None,
+                "Método":metodo
+            })
+
+    df = pd.DataFrame(filas)
+    st.dataframe(df, use_container_width=True, hide_index=True)
+
+    st.subheader("5. Resumen de los diámetros seleccionados")
+    df_sel = df[df["Alternativa"]=="D2 seleccionado"].copy()
+    st.dataframe(df_sel, use_container_width=True, hide_index=True)
+
+    st.info(
+        "Para una red ramificada, la pérdida total se suma por la ruta hidráulica que se esté analizando; "
+        "no se deben sumar indiscriminadamente todos los tramos de ramas diferentes."
+    )
 
 st.markdown(
     '<div class="jeni-footer">Calculadora personal de hidráulica en tuberías 💗💜</div>',
